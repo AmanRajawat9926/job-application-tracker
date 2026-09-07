@@ -1,122 +1,76 @@
-import { useState } from 'react'
-import heroImg from './assets/hero.png'
-import reactLogo from './assets/react.svg'
-import viteLogo from './assets/vite.svg'
-import './App.css'
+import React, { useState, useEffect } from 'react';
+import ApplicationForm from './components/ApplicationForm';
+import ApplicationList from './components/ApplicationList';
+import './App.css';
 
-function App() {
-  const [count, setCount] = useState(0)
+// Key used to store and retrieve applications from localStorage
+const STORAGE_KEY = 'storage_key';
+
+export default function App() {
+  // Store all job applications in state
+  const [applications, setApplications] = useState(() => {
+    try {
+      // Get saved application data from localStorage
+      const saved = localStorage.getItem(STORAGE_KEY);
+
+      // Convert saved JSON string back into an array
+      // If nothing is saved, use an empty array
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      // If localStorage contains invalid JSON,
+      // start with an empty application list
+      return [];
+    }
+  });
+
+  // Save applications to localStorage whenever applications change
+  useEffect(() => {
+    localStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify(applications)
+    );
+  }, [applications]);
+
+  // Handle adding a new job application
+  const handleAddApplication = (newApp) => {
+    // Add the new application at the beginning of the array
+    setApplications((prev) => [newApp, ...prev]);
+  };
+
+  // Handle deleting an application
+  const handleDeleteApplication = (idToDelete) => {
+    // Keep all applications except the one whose ID matches
+    setApplications((prev) =>
+      prev.filter((app) => app.id !== idToDelete)
+    );
+  };
 
   return (
-    <>
-      <section id="center">
-        <div className="hero">
-          <img src={heroImg} className="base" width="170" height="179" alt="" />
-          <img src={reactLogo} className="framework" alt="React logo" />
-          <img src={viteLogo} className="vite" alt="Vite logo" />
-        </div>
-        <div>
-          <h1>Get started</h1>
-          <p>
-            Edit <code>src/App.jsx</code> and save to test <code>HMR</code>
-          </p>
-        </div>
-        <button
-          type="button"
-          className="counter"
-          onClick={() => setCount((count) => count + 1)}
-        >
-          Count is {count}
-        </button>
-      </section>
+    <div className="app-layout">
 
-      <div className="ticks"></div>
+      {/* Main page header */}
+      <header className="page-header">
+        <h1>Job Application Tracker</h1>
+      </header>
 
-      <section id="next-steps">
-        <div id="docs">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#documentation-icon"></use>
-          </svg>
-          <h2>Documentation</h2>
-          <p>Your questions, answered</p>
-          <ul>
-            <li>
-              <a href="https://vite.dev/" target="_blank">
-                <img className="logo" src={viteLogo} alt="" />
-                Explore Vite
-              </a>
-            </li>
-            <li>
-              <a href="https://react.dev/" target="_blank">
-                <img className="button-icon" src={reactLogo} alt="" />
-                Learn more
-              </a>
-            </li>
-          </ul>
-        </div>
-        <div id="social">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#social-icon"></use>
-          </svg>
-          <h2>Connect with us</h2>
-          <p>Join the Vite community</p>
-          <ul>
-            <li>
-              <a href="https://github.com/vitejs/vite" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#github-icon"></use>
-                </svg>
-                GitHub
-              </a>
-            </li>
-            <li>
-              <a href="https://chat.vite.dev/" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#discord-icon"></use>
-                </svg>
-                Discord
-              </a>
-            </li>
-            <li>
-              <a href="https://x.com/vite_js" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#x-icon"></use>
-                </svg>
-                X.com
-              </a>
-            </li>
-            <li>
-              <a href="https://bsky.app/profile/vite.dev" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#bluesky-icon"></use>
-                </svg>
-                Bluesky
-              </a>
-            </li>
-          </ul>
-        </div>
-      </section>
+      <main className="content-container">
 
-      <div className="ticks"></div>
-      <section id="spacer"></section>
-    </>
-  )
+        {/* Left column containing the application form */}
+        <section className="form-column">
+          <ApplicationForm
+            onAddApplication={handleAddApplication}
+          />
+        </section>
+
+        {/* Right column containing the application list */}
+        <section className="list-column">
+          <ApplicationList
+            applications={applications}
+            onDeleteApplication={handleDeleteApplication}
+          />
+        </section>
+
+      </main>
+    </div>
+  );
 }
-
-export default App
