@@ -1,4 +1,3 @@
-// src/components/ApplicationList.jsx
 import React, { useState, useMemo } from 'react';
 import ApplicationRow from './ApplicationRow';
 import { ROUNDS } from '../utils/helpers';

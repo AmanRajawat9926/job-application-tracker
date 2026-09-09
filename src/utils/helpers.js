@@ -1,10 +1,61 @@
-// src/utils/helpers.js
-
 export const ROUNDS = ['Applied', 'Screen', 'Interview', 'Offer', 'Rejected'];
+export const STALE_ROUNDS = ['Applied', 'Screen'];
+export const STALE_THRESHOLD_DAYS = 14;
+
+
+export function isValidAppliedDate(dateStr) {
+  if (!dateStr || typeof dateStr !== 'string') return false;
+  const match = dateStr.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!match) return false;
+
+  const year = parseInt(match[1], 10);
+  const month = parseInt(match[2], 10) - 1;
+  const day = parseInt(match[3], 10);
+
+  const date = new Date(year, month, day);
+  // Ensure JavaScript date constructor did not roll over invalid days (e.g., Feb 31)
+  if (
+    date.getFullYear() !== year ||
+    date.getMonth() !== month ||
+    date.getDate() !== day
+  ) {
+    return false;
+  }
+
+  // Ensure it is not in the future relative to local midnight
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  return date <= today;
+}
+
+/**
+ * Calculates raw calendar days elapsed since application date.
+ * Returns null if the date is invalid.
+ */
+export function getDaysSinceApplied(dateString) {
+  if (!dateString) return null;
+  const targetDate = new Date(dateString + 'T00:00:00');
+  if (isNaN(targetDate.getTime())) return null;
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const diffTime = today.getTime() - targetDate.getTime();
+  const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+  return Math.max(0, diffDays);
+}
+
+/**
+ * Stale logic: true ONLY when round is 'Applied' or 'Screen' AND days > 14
+ */
+export function isApplicationStale(round, appliedDate) {
+  if (!STALE_ROUNDS.includes(round)) return false;
+  const days = getDaysSinceApplied(appliedDate);
+  return days !== null && days > STALE_THRESHOLD_DAYS;
+}
 
 export function validateApplication(data) {
   const errors = {};
-  const today = new Date().toISOString().split('T')[0];
 
   if (!data.company || !data.company.trim()) {
     errors.company = 'Company name is required.';
@@ -14,10 +65,18 @@ export function validateApplication(data) {
     errors.role = 'Role is required.';
   }
 
-  if (!data.appliedDate) {
+  if (!data.appliedDate || !data.appliedDate.trim()) {
     errors.appliedDate = 'Applied date is required.';
-  } else if (data.appliedDate > today) {
-    errors.appliedDate = 'Applied date cannot be in the future.';
+  } else {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const parsed = new Date(data.appliedDate + 'T00:00:00');
+
+    if (isNaN(parsed.getTime())) {
+      errors.appliedDate = 'Please select a valid calendar date.';
+    } else if (parsed > today) {
+      errors.appliedDate = 'Applied date cannot be in the future.';
+    }
   }
 
   if (!data.jobLink || !data.jobLink.trim()) {
@@ -37,27 +96,25 @@ export function validateApplication(data) {
 }
 
 export function getRelativeTime(dateString) {
-  const targetDate = new Date(dateString + 'T00:00:00');
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
+  const days = getDaysSinceApplied(dateString);
+  if (days === null) return 'Date unknown';
+  if (days === 0) return 'Today';
+  if (days === 1) return 'Yesterday';
+  if (days < 30) return `${days} days ago`;
 
-  const diffTime = today - targetDate;
-  const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+  const months = Math.floor(days / 30);
+  if (months === 1) return '1 month ago';
+  if (months < 12) return `${months} months ago`;
 
-  if (diffDays === 0) return 'Today';
-  if (diffDays === 1) return 'Yesterday';
-  if (diffDays < 30) return `${diffDays} days ago`;
-
-  const diffMonths = Math.floor(diffDays / 30);
-  if (diffMonths === 1) return '1 month ago';
-  if (diffMonths < 12) return `${diffMonths} months ago`;
-
-  const diffYears = Math.floor(diffDays / 365);
-  return diffYears === 1 ? '1 year ago' : `${diffYears} years ago`;
+  const years = Math.floor(days / 365);
+  return years === 1 ? '1 year ago' : `${years} years ago`;
 }
 
 export function formatExactDate(dateString) {
+  if (!dateString) return 'No date provided';
   const date = new Date(dateString + 'T00:00:00');
+  if (isNaN(date.getTime())) return 'Invalid date';
+
   return date.toLocaleDateString(undefined, {
     weekday: 'short',
     year: 'numeric',

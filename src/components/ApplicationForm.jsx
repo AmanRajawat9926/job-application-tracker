@@ -1,12 +1,13 @@
-// src/components/ApplicationForm.jsx
 import React, { useState } from 'react';
 import { validateApplication, ROUNDS } from '../utils/helpers';
+
+const getTodayString = () => new Date().toISOString().split('T')[0];
 
 const INITIAL_FORM = {
   company: '',
   role: '',
   round: 'Applied',
-  appliedDate: new Date().toISOString().split('T')[0],
+  appliedDate: getTodayString(),
   jobLink: ''
 };
 
@@ -36,7 +37,10 @@ export default function ApplicationForm({ onAddApplication }) {
       id: crypto.randomUUID()
     });
 
-    setFormData(INITIAL_FORM);
+    setFormData({
+      ...INITIAL_FORM,
+      appliedDate: getTodayString()
+    });
     setErrors({});
   };
 
@@ -45,9 +49,9 @@ export default function ApplicationForm({ onAddApplication }) {
       <h2>Add Application</h2>
 
       <div className="form-group">
-        <label htmlFor="company">Company</label>
+        <label htmlFor="add-company">Company</label>
         <input
-          id="company"
+          id="add-company"
           name="company"
           type="text"
           value={formData.company}
@@ -58,22 +62,22 @@ export default function ApplicationForm({ onAddApplication }) {
       </div>
 
       <div className="form-group">
-        <label htmlFor="role">Role</label>
+        <label htmlFor="add-role">Role</label>
         <input
-          id="role"
+          id="add-role"
           name="role"
           type="text"
           value={formData.role}
           onChange={handleChange}
-          placeholder="e.g. Software Engineer"
+          placeholder="e.g. Full Stack Engineer"
         />
         {errors.role && <span className="field-error">{errors.role}</span>}
       </div>
 
       <div className="form-group">
-        <label htmlFor="round">Round</label>
+        <label htmlFor="add-round">Round</label>
         <select
-          id="round"
+          id="add-round"
           name="round"
           value={formData.round}
           onChange={handleChange}
@@ -85,11 +89,12 @@ export default function ApplicationForm({ onAddApplication }) {
       </div>
 
       <div className="form-group">
-        <label htmlFor="appliedDate">Applied Date</label>
+        <label htmlFor="add-date">Applied Date</label>
         <input
-          id="appliedDate"
+          id="add-date"
           name="appliedDate"
           type="date"
+          max={getTodayString()}
           value={formData.appliedDate}
           onChange={handleChange}
         />
@@ -97,14 +102,14 @@ export default function ApplicationForm({ onAddApplication }) {
       </div>
 
       <div className="form-group">
-        <label htmlFor="jobLink">Job Posting URL</label>
+        <label htmlFor="add-link">Job Posting URL</label>
         <input
-          id="jobLink"
+          id="add-link"
           name="jobLink"
           type="url"
           value={formData.jobLink}
           onChange={handleChange}
-          placeholder="https://example.com/job"
+          placeholder="https://..."
         />
         {errors.jobLink && <span className="field-error">{errors.jobLink}</span>}
       </div>

@@ -1,11 +1,20 @@
-// src/components/ApplicationRow.jsx
 import React, { useState } from 'react';
-import { validateApplication, ROUNDS, getRelativeTime, formatExactDate } from '../utils/helpers';
+import {
+  validateApplication,
+  ROUNDS,
+  getRelativeTime,
+  formatExactDate,
+  getDaysSinceApplied,
+  isApplicationStale
+} from '../utils/helpers';
 
 export default function ApplicationRow({ app, onUpdate, onDelete }) {
   const [isEditing, setIsEditing] = useState(false);
   const [editData, setEditData] = useState(app);
   const [errors, setErrors] = useState({});
+
+  const daysSince = getDaysSinceApplied(app.appliedDate);
+  const isStale = isApplicationStale(app.round, app.appliedDate);
 
   const handleEditChange = (e) => {
     const { name, value } = e.target;
@@ -39,8 +48,9 @@ export default function ApplicationRow({ app, onUpdate, onDelete }) {
         <form onSubmit={handleSave} noValidate>
           <div className="edit-grid">
             <div className="form-group">
-              <label>Company</label>
+              <label htmlFor={`edit-company-${app.id}`}>Company</label>
               <input
+                id={`edit-company-${app.id}`}
                 name="company"
                 type="text"
                 value={editData.company}
@@ -50,8 +60,9 @@ export default function ApplicationRow({ app, onUpdate, onDelete }) {
             </div>
 
             <div className="form-group">
-              <label>Role</label>
+              <label htmlFor={`edit-role-${app.id}`}>Role</label>
               <input
+                id={`edit-role-${app.id}`}
                 name="role"
                 type="text"
                 value={editData.role}
@@ -61,8 +72,13 @@ export default function ApplicationRow({ app, onUpdate, onDelete }) {
             </div>
 
             <div className="form-group">
-              <label>Round</label>
-              <select name="round" value={editData.round} onChange={handleEditChange}>
+              <label htmlFor={`edit-round-${app.id}`}>Round</label>
+              <select
+                id={`edit-round-${app.id}`}
+                name="round"
+                value={editData.round}
+                onChange={handleEditChange}
+              >
                 {ROUNDS.map((r) => (
                   <option key={r} value={r}>{r}</option>
                 ))}
@@ -70,10 +86,12 @@ export default function ApplicationRow({ app, onUpdate, onDelete }) {
             </div>
 
             <div className="form-group">
-              <label>Applied Date</label>
+              <label htmlFor={`edit-date-${app.id}`}>Applied Date</label>
               <input
+                id={`edit-date-${app.id}`}
                 name="appliedDate"
                 type="date"
+                max={new Date().toISOString().split('T')[0]}
                 value={editData.appliedDate}
                 onChange={handleEditChange}
               />
@@ -81,8 +99,9 @@ export default function ApplicationRow({ app, onUpdate, onDelete }) {
             </div>
 
             <div className="form-group span-two">
-              <label>Job Posting URL</label>
+              <label htmlFor={`edit-link-${app.id}`}>Job Posting URL</label>
               <input
+                id={`edit-link-${app.id}`}
                 name="jobLink"
                 type="url"
                 value={editData.jobLink}
@@ -106,15 +125,23 @@ export default function ApplicationRow({ app, onUpdate, onDelete }) {
   }
 
   return (
-    <article className="app-card">
+    <article className={`app-card ${isStale ? 'card-stale-border' : ''}`}>
       <header className="card-header">
         <div>
-          <h3>{app.role}</h3>
+          <div className="title-row">
+            <h3>{app.role}</h3>
+            {isStale && <span className="badge badge-stale">Stale (&gt;14d)</span>}
+          </div>
           <p className="company-name">{app.company}</p>
         </div>
-        <span className={`badge badge-${app.round.toLowerCase()}`}>
-          {app.round}
-        </span>
+        <div className="badge-group">
+          <span className="badge badge-days">
+            {daysSince === null ? 'Unknown age' : `${daysSince}d active`}
+          </span>
+          <span className={`badge badge-${app.round.toLowerCase()}`}>
+            {app.round}
+          </span>
+        </div>
       </header>
 
       <div className="card-body">
@@ -130,18 +157,25 @@ export default function ApplicationRow({ app, onUpdate, onDelete }) {
         </p>
 
         <div className="card-actions">
-          <a
-            href={app.jobLink}
-            target="_blank"
-            rel="noreferrer noopener"
-            className="job-anchor"
-          >
-            View Posting &rarr;
-          </a>
+          {app.jobLink ? (
+            <a
+              href={app.jobLink}
+              target="_blank"
+              rel="noreferrer noopener"
+              className="job-anchor"
+            >
+              View Posting &rarr;
+            </a>
+          ) : (
+            <span className="no-link">No link</span>
+          )}
           <button
             type="button"
             className="edit-btn"
-            onClick={() => setIsEditing(true)}
+            onClick={() => {
+              setEditData(app);
+              setIsEditing(true);
+            }}
           >
             Edit
           </button>
