@@ -1,57 +1,50 @@
+// src/utils/helpers.js
+
 export const ROUNDS = ['Applied', 'Screen', 'Interview', 'Offer', 'Rejected'];
 export const STALE_ROUNDS = ['Applied', 'Screen'];
 export const STALE_THRESHOLD_DAYS = 14;
 
+/**
+ * Strict calendar validation:
+ * Verifies format, component matches (no silent rollover), and <= today.
+ */
+export function validateCalendarDate(dateStr) {
+  if (!dateStr || typeof dateStr !== 'string') {
+    return { valid: false, message: 'Applied date is required.' };
+  }
 
-export function isValidAppliedDate(dateStr) {
-  if (!dateStr || typeof dateStr !== 'string') return false;
   const match = dateStr.match(/^(\d{4})-(\d{2})-(\d{2})$/);
-  if (!match) return false;
+  if (!match) {
+    return { valid: false, message: 'Please enter a valid date in YYYY-MM-DD format.' };
+  }
 
   const year = parseInt(match[1], 10);
   const month = parseInt(match[2], 10) - 1;
   const day = parseInt(match[3], 10);
 
-  const date = new Date(year, month, day);
-  // Ensure JavaScript date constructor did not roll over invalid days (e.g., Feb 31)
-  if (
-    date.getFullYear() !== year ||
-    date.getMonth() !== month ||
-    date.getDate() !== day
-  ) {
-    return false;
+  if (year < 1990 || year > 2099) {
+    return { valid: false, message: 'Year is out of supported range.' };
   }
 
-  // Ensure it is not in the future relative to local midnight
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  return date <= today;
-}
+  const dateObj = new Date(year, month, day);
 
-/**
- * Calculates raw calendar days elapsed since application date.
- * Returns null if the date is invalid.
- */
-export function getDaysSinceApplied(dateString) {
-  if (!dateString) return null;
-  const targetDate = new Date(dateString + 'T00:00:00');
-  if (isNaN(targetDate.getTime())) return null;
+  // Checks for impossible dates (e.g. Feb 30 or rolling April 31)
+  if (
+    dateObj.getFullYear() !== year ||
+    dateObj.getMonth() !== month ||
+    dateObj.getDate() !== day
+  ) {
+    return { valid: false, message: 'This calendar date does not exist.' };
+  }
 
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
-  const diffTime = today.getTime() - targetDate.getTime();
-  const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
-  return Math.max(0, diffDays);
-}
+  if (dateObj.getTime() > today.getTime()) {
+    return { valid: false, message: 'Applied date cannot be in the future.' };
+  }
 
-/**
- * Stale logic: true ONLY when round is 'Applied' or 'Screen' AND days > 14
- */
-export function isApplicationStale(round, appliedDate) {
-  if (!STALE_ROUNDS.includes(round)) return false;
-  const days = getDaysSinceApplied(appliedDate);
-  return days !== null && days > STALE_THRESHOLD_DAYS;
+  return { valid: true };
 }
 
 export function validateApplication(data) {
@@ -65,18 +58,9 @@ export function validateApplication(data) {
     errors.role = 'Role is required.';
   }
 
-  if (!data.appliedDate || !data.appliedDate.trim()) {
-    errors.appliedDate = 'Applied date is required.';
-  } else {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const parsed = new Date(data.appliedDate + 'T00:00:00');
-
-    if (isNaN(parsed.getTime())) {
-      errors.appliedDate = 'Please select a valid calendar date.';
-    } else if (parsed > today) {
-      errors.appliedDate = 'Applied date cannot be in the future.';
-    }
+  const dateValidation = validateCalendarDate(data.appliedDate);
+  if (!dateValidation.valid) {
+    errors.appliedDate = dateValidation.message;
   }
 
   if (!data.jobLink || !data.jobLink.trim()) {
@@ -95,9 +79,27 @@ export function validateApplication(data) {
   return errors;
 }
 
+export function getDaysSinceApplied(dateString) {
+  if (!dateString) return null;
+  const target = new Date(dateString + 'T00:00:00');
+  if (isNaN(target.getTime())) return null;
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const diffDays = Math.floor((today.getTime() - target.getTime()) / (1000 * 60 * 60 * 24));
+  return Math.max(0, diffDays);
+}
+
+export function isApplicationStale(round, appliedDate) {
+  if (!STALE_ROUNDS.includes(round)) return false;
+  const days = getDaysSinceApplied(appliedDate);
+  return days !== null && days > STALE_THRESHOLD_DAYS;
+}
+
 export function getRelativeTime(dateString) {
   const days = getDaysSinceApplied(dateString);
-  if (days === null) return 'Date unknown';
+  if (days === null) return 'Unknown date';
   if (days === 0) return 'Today';
   if (days === 1) return 'Yesterday';
   if (days < 30) return `${days} days ago`;
@@ -112,10 +114,10 @@ export function getRelativeTime(dateString) {
 
 export function formatExactDate(dateString) {
   if (!dateString) return 'No date provided';
-  const date = new Date(dateString + 'T00:00:00');
-  if (isNaN(date.getTime())) return 'Invalid date';
+  const target = new Date(dateString + 'T00:00:00');
+  if (isNaN(target.getTime())) return 'Invalid date';
 
-  return date.toLocaleDateString(undefined, {
+  return target.toLocaleDateString(undefined, {
     weekday: 'short',
     year: 'numeric',
     month: 'short',

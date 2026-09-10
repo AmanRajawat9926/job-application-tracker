@@ -1,19 +1,16 @@
+// src/App.jsx
 import React, { useState, useEffect } from 'react';
 import ApplicationForm from './components/ApplicationForm';
 import ApplicationList from './components/ApplicationList';
 import RoundStats from './components/RoundStats';
-import { loadAndMigrateApplications, CANONICAL_STORAGE_KEY } from './utils/storage';
+import { loadApplicationsWithOneTimeMigration, saveApplications } from './utils/storage';
 import './App.css';
 
 export default function App() {
-  const [applications, setApplications] = useState(() => loadAndMigrateApplications());
+  const [applications, setApplications] = useState(() => loadApplicationsWithOneTimeMigration());
 
   useEffect(() => {
-    try {
-      localStorage.setItem(CANONICAL_STORAGE_KEY, JSON.stringify(applications));
-    } catch (err) {
-      console.error('Failed to sync applications to localStorage', err);
-    }
+    saveApplications(applications);
   }, [applications]);
 
   const handleAddApplication = (newApp) => {

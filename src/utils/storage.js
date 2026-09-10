@@ -1,90 +1,93 @@
-export const CANONICAL_STORAGE_KEY = 'job_tracker_canonical_v3';
+// src/utils/storage.js
+
+export const CANONICAL_STORAGE_KEY = 'job_tracker_canonical_v4';
+const MIGRATION_LOCK_KEY = 'job_tracker_migrated_lock';
 const LEGACY_KEYS = [
   'job_tracker_applications_v1',
   'job_tracker_applications',
+  'job_tracker_canonical_v3',
   'applications',
   'job_applications'
 ];
 
+export function loadApplicationsWithOneTimeMigration() {
+  // 1. If canonical data already exists, treat it as the single source of truth
+  try {
+    const canonicalRaw = localStorage.getItem(CANONICAL_STORAGE_KEY);
+    if (canonicalRaw !== null) {
+      const parsed = JSON.parse(canonicalRaw);
+      if (Array.isArray(parsed)) {
+        // Clean any leftover legacy keys so they never resurrect deleted records
+        LEGACY_KEYS.forEach((k) => localStorage.removeItem(k));
+        return parsed;
+      }
+    }
+  } catch (err) {
+    console.error('Error reading canonical storage:', err);
+  }
 
-export function loadAndMigrateApplications() {
-  const mergedPool = [];
+  // 2. Perform one-time migration if not yet locked
+  const alreadyMigrated = localStorage.getItem(MIGRATION_LOCK_KEY);
+  if (alreadyMigrated) {
+    return [];
+  }
+
+  const merged = [];
   const seenIds = new Set();
   const seenSignatures = new Set();
 
-  function processRecord(rawItem) {
-    if (!rawItem || typeof rawItem !== 'object') return null;
-
-    // Normalization & fallback for corrupted persisted records
-    const company = (rawItem.company || 'Unknown Company').trim();
-    const role = (rawItem.role || 'Unknown Role').trim();
-    const round = ['Applied', 'Screen', 'Interview', 'Offer', 'Rejected'].includes(rawItem.round)
-      ? rawItem.round
+  function sanitizeAndPush(item) {
+    if (!item || typeof item !== 'object') return;
+    const company = (item.company || '').trim();
+    const role = (item.role || '').trim();
+    const round = ['Applied', 'Screen', 'Interview', 'Offer', 'Rejected'].includes(item.round)
+      ? item.round
       : 'Applied';
-    
-    let appliedDate = rawItem.appliedDate;
-    if (!appliedDate || isNaN(new Date(appliedDate + 'T00:00:00').getTime())) {
-      appliedDate = new Date().toISOString().split('T')[0];
-    }
+    const appliedDate = item.appliedDate || new Date().toISOString().split('T')[0];
+    const jobLink = (item.jobLink || '').trim();
 
-    const jobLink = (rawItem.jobLink || '').trim();
     const signature = `${company.toLowerCase()}|${role.toLowerCase()}|${appliedDate}`;
-
-    // Prefer existing valid UUID, or generate a fresh stable one
-    const id = rawItem.id && typeof rawItem.id === 'string' && rawItem.id.length > 5
-      ? rawItem.id
+    const id = item.id && typeof item.id === 'string' && item.id.length > 5
+      ? item.id
       : crypto.randomUUID();
 
-    if (seenIds.has(id) || seenSignatures.has(signature)) {
-      return null;
+    if (!seenIds.has(id) && !seenSignatures.has(signature)) {
+      seenIds.add(id);
+      seenSignatures.add(signature);
+      merged.push({ id, company, role, round, appliedDate, jobLink });
     }
-
-    seenIds.add(id);
-    seenSignatures.add(signature);
-
-    return { id, company, role, round, appliedDate, jobLink };
   }
 
-  // 1. Read canonical first
-  try {
-    const canonicalRaw = localStorage.getItem(CANONICAL_STORAGE_KEY);
-    if (canonicalRaw) {
-      const parsed = JSON.parse(canonicalRaw);
-      if (Array.isArray(parsed)) {
-        parsed.forEach((item) => {
-          const valid = processRecord(item);
-          if (valid) mergedPool.push(valid);
-        });
-      }
-    }
-  } catch (err) {
-    console.error('Error parsing canonical storage:', err);
-  }
-
-  // 2. Read legacy keys and migrate
-  LEGACY_KEYS.forEach((oldKey) => {
+  LEGACY_KEYS.forEach((key) => {
     try {
-      const oldRaw = localStorage.getItem(oldKey);
-      if (oldRaw) {
-        const parsed = JSON.parse(oldRaw);
+      const raw = localStorage.getItem(key);
+      if (raw) {
+        const parsed = JSON.parse(raw);
         if (Array.isArray(parsed)) {
-          parsed.forEach((item) => {
-            const valid = processRecord(item);
-            if (valid) mergedPool.push(valid);
-          });
+          parsed.forEach(sanitizeAndPush);
         }
       }
-    } catch (err) {
-      console.warn(`Skipping malformed legacy key: ${oldKey}`, err);
+    } catch {
+      // Ignore corrupted legacy payloads
     }
   });
 
-  // Save the deduplicated list into the canonical key
+  // 3. Persist canonical state, set lock, and wipe legacy keys
   try {
-    localStorage.setItem(CANONICAL_STORAGE_KEY, JSON.stringify(mergedPool));
+    localStorage.setItem(CANONICAL_STORAGE_KEY, JSON.stringify(merged));
+    localStorage.setItem(MIGRATION_LOCK_KEY, 'true');
+    LEGACY_KEYS.forEach((key) => localStorage.removeItem(key));
   } catch (err) {
-    console.error('Failed to write migrated storage', err);
+    console.error('Failed to commit canonical storage migration:', err);
   }
 
-  return mergedPool;
+  return merged;
+}
+
+export function saveApplications(applications) {
+  try {
+    localStorage.setItem(CANONICAL_STORAGE_KEY, JSON.stringify(applications));
+  } catch (err) {
+    console.error('Failed to save applications:', err);
+  }
 }
