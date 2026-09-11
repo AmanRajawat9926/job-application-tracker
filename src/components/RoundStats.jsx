@@ -3,12 +3,18 @@ import { ROUNDS } from '../utils/helpers';
 
 export default function RoundStats({ applications }) {
   const counts = ROUNDS.reduce((acc, round) => {
-    acc[round] = applications.filter((app) => app.round === round).length;
+    acc[round] = 0;
     return acc;
   }, {});
 
+  applications.forEach((app) => {
+    if (counts[app.round] !== undefined) {
+      counts[app.round] += 1;
+    }
+  });
+
   return (
-    <div className="stats-bar">
+    <nav className="stats-bar" aria-label="Application status counts">
       <div className="stat-pill total-pill">
         <span className="stat-label">Total</span>
         <span className="stat-value">{applications.length}</span>
@@ -16,9 +22,9 @@ export default function RoundStats({ applications }) {
       {ROUNDS.map((round) => (
         <div key={round} className={`stat-pill stat-${round.toLowerCase()}`}>
           <span className="stat-label">{round}</span>
-          <span className="stat-value">{counts[round] || 0}</span>
+          <span className="stat-value">{counts[round]}</span>
         </div>
       ))}
-    </div>
+    </nav>
   );
 }

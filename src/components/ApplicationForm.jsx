@@ -1,7 +1,5 @@
 import React, { useState } from 'react';
-import { validateApplication, ROUNDS } from '../utils/helpers';
-
-const getTodayString = () => new Date().toISOString().split('T')[0];
+import { validateApplication, ROUNDS, getTodayString } from '../utils/helpers';
 
 const INITIAL_FORM = {
   company: '',
@@ -45,39 +43,55 @@ export default function ApplicationForm({ onAddApplication }) {
   };
 
   return (
-    <form className="app-form" onSubmit={handleSubmit} noValidate>
-      <h2>Add Application</h2>
+    <form className="app-form" onSubmit={handleSubmit} noValidate aria-labelledby="form-heading">
+      <h2 id="form-heading">Add Application</h2>
 
       <div className="form-group">
-        <label htmlFor="add-company">Company</label>
+        <label htmlFor="company-field">
+          Company <span className="req-marker" aria-hidden="true">*</span>
+        </label>
         <input
-          id="add-company"
+          id="company-field"
           name="company"
           type="text"
           value={formData.company}
           onChange={handleChange}
+          aria-invalid={Boolean(errors.company)}
+          aria-describedby={errors.company ? 'company-error' : undefined}
           placeholder="e.g. Stripe"
         />
-        {errors.company && <span className="field-error">{errors.company}</span>}
+        {errors.company && (
+          <span id="company-error" className="field-error" role="alert">
+            {errors.company}
+          </span>
+        )}
       </div>
 
       <div className="form-group">
-        <label htmlFor="add-role">Role</label>
+        <label htmlFor="role-field">
+          Role <span className="req-marker" aria-hidden="true">*</span>
+        </label>
         <input
-          id="add-role"
+          id="role-field"
           name="role"
           type="text"
           value={formData.role}
           onChange={handleChange}
+          aria-invalid={Boolean(errors.role)}
+          aria-describedby={errors.role ? 'role-error' : undefined}
           placeholder="e.g. Full Stack Engineer"
         />
-        {errors.role && <span className="field-error">{errors.role}</span>}
+        {errors.role && (
+          <span id="role-error" className="field-error" role="alert">
+            {errors.role}
+          </span>
+        )}
       </div>
 
       <div className="form-group">
-        <label htmlFor="add-round">Round</label>
+        <label htmlFor="round-field">Round</label>
         <select
-          id="add-round"
+          id="round-field"
           name="round"
           value={formData.round}
           onChange={handleChange}
@@ -89,29 +103,45 @@ export default function ApplicationForm({ onAddApplication }) {
       </div>
 
       <div className="form-group">
-        <label htmlFor="add-date">Applied Date</label>
+        <label htmlFor="date-field">
+          Applied Date <span className="req-marker" aria-hidden="true">*</span>
+        </label>
         <input
-          id="add-date"
+          id="date-field"
           name="appliedDate"
           type="date"
           max={getTodayString()}
           value={formData.appliedDate}
           onChange={handleChange}
+          aria-invalid={Boolean(errors.appliedDate)}
+          aria-describedby={errors.appliedDate ? 'date-error' : undefined}
         />
-        {errors.appliedDate && <span className="field-error">{errors.appliedDate}</span>}
+        {errors.appliedDate && (
+          <span id="date-error" className="field-error" role="alert">
+            {errors.appliedDate}
+          </span>
+        )}
       </div>
 
       <div className="form-group">
-        <label htmlFor="add-link">Job Posting URL</label>
+        <label htmlFor="link-field">
+          Job Posting URL <span className="req-marker" aria-hidden="true">*</span>
+        </label>
         <input
-          id="add-link"
+          id="link-field"
           name="jobLink"
           type="url"
           value={formData.jobLink}
           onChange={handleChange}
+          aria-invalid={Boolean(errors.jobLink)}
+          aria-describedby={errors.jobLink ? 'link-error' : undefined}
           placeholder="https://..."
         />
-        {errors.jobLink && <span className="field-error">{errors.jobLink}</span>}
+        {errors.jobLink && (
+          <span id="link-error" className="field-error" role="alert">
+            {errors.jobLink}
+          </span>
+        )}
       </div>
 
       <button type="submit" className="submit-btn">Save Application</button>

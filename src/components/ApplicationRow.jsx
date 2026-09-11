@@ -5,7 +5,8 @@ import {
   getRelativeTime,
   formatExactDate,
   getDaysSinceApplied,
-  isApplicationStale
+  isApplicationStale,
+  getTodayString
 } from '../utils/helpers';
 
 export default function ApplicationRow({ app, onUpdate, onDelete }) {
@@ -44,7 +45,7 @@ export default function ApplicationRow({ app, onUpdate, onDelete }) {
 
   if (isEditing) {
     return (
-      <article className="app-card edit-card">
+      <article className="app-card edit-card" aria-label={`Editing ${app.role} at ${app.company}`}>
         <form onSubmit={handleSave} noValidate>
           <div className="edit-grid">
             <div className="form-group">
@@ -55,6 +56,7 @@ export default function ApplicationRow({ app, onUpdate, onDelete }) {
                 type="text"
                 value={editData.company}
                 onChange={handleEditChange}
+                aria-invalid={Boolean(errors.company)}
               />
               {errors.company && <span className="field-error">{errors.company}</span>}
             </div>
@@ -67,6 +69,7 @@ export default function ApplicationRow({ app, onUpdate, onDelete }) {
                 type="text"
                 value={editData.role}
                 onChange={handleEditChange}
+                aria-invalid={Boolean(errors.role)}
               />
               {errors.role && <span className="field-error">{errors.role}</span>}
             </div>
@@ -91,9 +94,10 @@ export default function ApplicationRow({ app, onUpdate, onDelete }) {
                 id={`edit-date-${app.id}`}
                 name="appliedDate"
                 type="date"
-                max={new Date().toISOString().split('T')[0]}
+                max={getTodayString()}
                 value={editData.appliedDate}
                 onChange={handleEditChange}
+                aria-invalid={Boolean(errors.appliedDate)}
               />
               {errors.appliedDate && <span className="field-error">{errors.appliedDate}</span>}
             </div>
@@ -106,6 +110,7 @@ export default function ApplicationRow({ app, onUpdate, onDelete }) {
                 type="url"
                 value={editData.jobLink}
                 onChange={handleEditChange}
+                aria-invalid={Boolean(errors.jobLink)}
               />
               {errors.jobLink && <span className="field-error">{errors.jobLink}</span>}
             </div>
@@ -125,18 +130,22 @@ export default function ApplicationRow({ app, onUpdate, onDelete }) {
   }
 
   return (
-    <article className={`app-card ${isStale ? 'card-stale-border' : ''}`}>
+    <article className={`app-card ${isStale ? 'card-stale' : ''}`}>
       <header className="card-header">
         <div>
           <div className="title-row">
-            <h3>{app.role}</h3>
-            {isStale && <span className="badge badge-stale">Stale (&gt;14d)</span>}
+            <h3 className="role-title">{app.role}</h3>
+            {isStale && (
+              <span className="badge badge-stale" aria-label="Stale: over 14 days without movement">
+                Stale (&gt;14d)
+              </span>
+            )}
           </div>
           <p className="company-name">{app.company}</p>
         </div>
         <div className="badge-group">
           <span className="badge badge-days">
-            {daysSince === null ? 'Unknown age' : `${daysSince}d active`}
+            {daysSince === null ? 'Unknown' : `${daysSince}d active`}
           </span>
           <span className={`badge badge-${app.round.toLowerCase()}`}>
             {app.round}
@@ -151,6 +160,8 @@ export default function ApplicationRow({ app, onUpdate, onDelete }) {
             dateTime={app.appliedDate}
             title={formatExactDate(app.appliedDate)}
             className="time-hover"
+            tabIndex="0"
+            aria-label={`Applied ${getRelativeTime(app.appliedDate)}, exactly ${formatExactDate(app.appliedDate)}`}
           >
             {getRelativeTime(app.appliedDate)}
           </time>
@@ -161,8 +172,9 @@ export default function ApplicationRow({ app, onUpdate, onDelete }) {
             <a
               href={app.jobLink}
               target="_blank"
-              rel="noreferrer noopener"
+              rel="noopener noreferrer"
               className="job-anchor"
+              aria-label={`Open job posting for ${app.role} at ${app.company}`}
             >
               View Posting &rarr;
             </a>
@@ -171,18 +183,20 @@ export default function ApplicationRow({ app, onUpdate, onDelete }) {
           )}
           <button
             type="button"
-            className="edit-btn"
+            className="btn-edit"
             onClick={() => {
               setEditData(app);
               setIsEditing(true);
             }}
+            aria-label={`Edit ${app.role} application at ${app.company}`}
           >
             Edit
           </button>
           <button
             type="button"
-            className="delete-btn"
+            className="btn-delete"
             onClick={() => onDelete(app.id)}
+            aria-label={`Delete ${app.role} application at ${app.company}`}
           >
             Delete
           </button>

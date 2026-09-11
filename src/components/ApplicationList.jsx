@@ -1,4 +1,3 @@
-// src/components/ApplicationList.jsx
 import React, { useState, useMemo } from 'react';
 import ApplicationRow from './ApplicationRow';
 import { ROUNDS } from '../utils/helpers';
@@ -11,11 +10,13 @@ export default function ApplicationList({
   const [searchTerm, setSearchTerm] = useState('');
   const [roundFilter, setRoundFilter] = useState('ALL');
 
-  // Newest first, then apply combined filter
   const filteredApplications = useMemo(() => {
-    const sorted = [...applications].sort(
-      (a, b) => new Date(b.appliedDate) - new Date(a.appliedDate)
-    );
+
+    const sorted = [...applications].sort((a, b) => {
+      const dateA = new Date(a.appliedDate + 'T00:00:00').getTime();
+      const dateB = new Date(b.appliedDate + 'T00:00:00').getTime();
+      return dateB - dateA;
+    });
 
     return sorted.filter((app) => {
       const term = searchTerm.trim().toLowerCase();
@@ -25,52 +26,68 @@ export default function ApplicationList({
         app.role.toLowerCase().includes(term);
 
       const matchesRound = roundFilter === 'ALL' || app.round === roundFilter;
+
       return matchesSearch && matchesRound;
     });
   }, [applications, searchTerm, roundFilter]);
 
-  // Distinct Empty State 1: Global database is empty
   if (applications.length === 0) {
     return (
-      <div className="list-container">
-        <div className="empty-state empty-state-initial">
-          <p className="empty-title">No applications recorded</p>
+      <section className="list-container" aria-labelledby="list-heading">
+        <h2 id="list-heading" className="sr-only">Applications List</h2>
+        <div className="empty-state empty-state-initial" role="status">
+          <p className="empty-title">No applications recorded yet</p>
           <p className="empty-sub">
-            Add your first job application using the form to start tracking your rounds and timeline.
+            Fill out the form on the left to start tracking your job applications.
           </p>
         </div>
-      </div>
+      </section>
     );
   }
 
   return (
-    <div className="list-container">
-      <div className="filter-toolbar">
-        <input
-          type="text"
-          className="search-input"
-          placeholder="Search company or role..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-        />
-        <select
-          className="round-select"
-          value={roundFilter}
-          onChange={(e) => setRoundFilter(e.target.value)}
-        >
-          <option value="ALL">All Rounds</option>
-          {ROUNDS.map((r) => (
-            <option key={r} value={r}>{r}</option>
-          ))}
-        </select>
+    <section className="list-container" aria-labelledby="list-heading">
+      <div className="list-header-row">
+        <h2 id="list-heading">
+          Applications ({filteredApplications.length}{' '}
+          {filteredApplications.length !== applications.length ? `of ${applications.length}` : ''})
+        </h2>
       </div>
 
-      {/* Distinct Empty State 2: Filters match nothing */}
+      <div className="filter-toolbar" role="search" aria-label="Filter applications">
+        <div className="search-box">
+          <label htmlFor="search-input" className="sr-only">Search applications</label>
+          <input
+            id="search-input"
+            type="search"
+            className="search-input"
+            placeholder="Search by company or role..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
+        </div>
+
+        <div className="filter-box">
+          <label htmlFor="round-filter" className="sr-only">Filter by round</label>
+          <select
+            id="round-filter"
+            className="round-select"
+            value={roundFilter}
+            onChange={(e) => setRoundFilter(e.target.value)}
+          >
+            <option value="ALL">All Rounds</option>
+            {ROUNDS.map((r) => (
+              <option key={r} value={r}>{r}</option>
+            ))}
+          </select>
+        </div>
+      </div>
+
       {filteredApplications.length === 0 ? (
-        <div className="empty-state empty-state-search">
+        <div className="empty-state empty-state-search" role="status">
           <p className="empty-title">No matching applications</p>
           <p className="empty-sub">
-            No entries found matching &ldquo;{searchTerm}&rdquo; in round &ldquo;{roundFilter}&rdquo;.
+            No applications match &ldquo;{searchTerm}&rdquo; in &ldquo;{roundFilter}&rdquo;.
           </p>
           <button
             type="button"
@@ -80,11 +97,11 @@ export default function ApplicationList({
               setRoundFilter('ALL');
             }}
           >
-            Clear Filters
+            Reset Filters
           </button>
         </div>
       ) : (
-        <div className="card-grid">
+        <div className="card-grid" role="feed" aria-busy="false">
           {filteredApplications.map((app) => (
             <ApplicationRow
               key={app.id}
@@ -95,6 +112,6 @@ export default function ApplicationList({
           ))}
         </div>
       )}
-    </div>
+    </section>
   );
 }

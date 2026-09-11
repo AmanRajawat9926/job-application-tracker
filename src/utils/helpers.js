@@ -1,105 +1,72 @@
-// src/utils/helpers.js
 
 export const ROUNDS = ['Applied', 'Screen', 'Interview', 'Offer', 'Rejected'];
 export const STALE_ROUNDS = ['Applied', 'Screen'];
 export const STALE_THRESHOLD_DAYS = 14;
 
-/**
- * Strict calendar validation:
- * Verifies format, component matches (no silent rollover), and <= today.
- */
-export function validateCalendarDate(dateStr) {
-  if (!dateStr || typeof dateStr !== 'string') {
-    return { valid: false, message: 'Applied date is required.' };
-  }
+export const getTodayString = () => {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const day = String(now.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
 
+
+export function isValidCalendarDate(dateStr) {
+  if (!dateStr || typeof dateStr !== 'string') return false;
   const match = dateStr.match(/^(\d{4})-(\d{2})-(\d{2})$/);
-  if (!match) {
-    return { valid: false, message: 'Please enter a valid date in YYYY-MM-DD format.' };
-  }
+  if (!match) return false;
 
   const year = parseInt(match[1], 10);
   const month = parseInt(match[2], 10) - 1;
   const day = parseInt(match[3], 10);
 
-  if (year < 1990 || year > 2099) {
-    return { valid: false, message: 'Year is out of supported range.' };
-  }
-
-  const dateObj = new Date(year, month, day);
-
-  // Checks for impossible dates (e.g. Feb 30 or rolling April 31)
+  const parsed = new Date(year, month, day);
   if (
-    dateObj.getFullYear() !== year ||
-    dateObj.getMonth() !== month ||
-    dateObj.getDate() !== day
+    parsed.getFullYear() !== year ||
+    parsed.getMonth() !== month ||
+    parsed.getDate() !== day
   ) {
-    return { valid: false, message: 'This calendar date does not exist.' };
+    return false;
   }
 
   const today = new Date();
   today.setHours(0, 0, 0, 0);
-
-  if (dateObj.getTime() > today.getTime()) {
-    return { valid: false, message: 'Applied date cannot be in the future.' };
-  }
-
-  return { valid: true };
+  return parsed <= today;
 }
 
-export function validateApplication(data) {
-  const errors = {};
-
-  if (!data.company || !data.company.trim()) {
-    errors.company = 'Company name is required.';
-  }
-
-  if (!data.role || !data.role.trim()) {
-    errors.role = 'Role is required.';
-  }
-
-  const dateValidation = validateCalendarDate(data.appliedDate);
-  if (!dateValidation.valid) {
-    errors.appliedDate = dateValidation.message;
-  }
-
-  if (!data.jobLink || !data.jobLink.trim()) {
-    errors.jobLink = 'Job link is required.';
-  } else {
-    try {
-      const parsedUrl = new URL(data.jobLink.trim());
-      if (!['http:', 'https:'].includes(parsedUrl.protocol)) {
-        errors.jobLink = 'Link must start with http:// or https://';
-      }
-    } catch {
-      errors.jobLink = 'Please enter a valid URL (e.g., https://example.com).';
-    }
-  }
-
-  return errors;
-}
-
+/**
+ * Calculates calendar days elapsed between appliedDate and current local midnight.
+ */
 export function getDaysSinceApplied(dateString) {
-  if (!dateString) return null;
-  const target = new Date(dateString + 'T00:00:00');
-  if (isNaN(target.getTime())) return null;
+  if (!isValidCalendarDate(dateString)) return null;
 
+  const [year, month, day] = dateString.split('-').map(Number);
+  const targetDate = new Date(year, month - 1, day);
+  
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
-  const diffDays = Math.floor((today.getTime() - target.getTime()) / (1000 * 60 * 60 * 24));
+  const diffTime = today.getTime() - targetDate.getTime();
+  const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
   return Math.max(0, diffDays);
 }
 
+/**
+ * Stale logic: true ONLY when round is 'Applied' or 'Screen' AND days > 14
+ */
 export function isApplicationStale(round, appliedDate) {
   if (!STALE_ROUNDS.includes(round)) return false;
   const days = getDaysSinceApplied(appliedDate);
   return days !== null && days > STALE_THRESHOLD_DAYS;
 }
 
+/**
+ * Relative time formatter for your personal constraint
+ */
 export function getRelativeTime(dateString) {
   const days = getDaysSinceApplied(dateString);
-  if (days === null) return 'Unknown date';
+  if (days === null) return 'Date unknown';
   if (days === 0) return 'Today';
   if (days === 1) return 'Yesterday';
   if (days < 30) return `${days} days ago`;
@@ -112,15 +79,67 @@ export function getRelativeTime(dateString) {
   return years === 1 ? '1 year ago' : `${years} years ago`;
 }
 
+/**
+ * Exact date formatter for title hover
+ */
 export function formatExactDate(dateString) {
-  if (!dateString) return 'No date provided';
-  const target = new Date(dateString + 'T00:00:00');
-  if (isNaN(target.getTime())) return 'Invalid date';
+  if (!isValidCalendarDate(dateString)) return 'Invalid date';
+  const [year, month, day] = dateString.split('-').map(Number);
+  const date = new Date(year, month - 1, day);
 
-  return target.toLocaleDateString(undefined, {
+  return date.toLocaleDateString(undefined, {
     weekday: 'short',
     year: 'numeric',
     month: 'short',
     day: 'numeric'
   });
+}
+
+/**
+ * Shared validation rules for Add and Edit flows
+ */
+export function validateApplication(data) {
+  const errors = {};
+
+  if (!data.company || !data.company.trim()) {
+    errors.company = 'Company name is required.';
+  }
+
+  if (!data.role || !data.role.trim()) {
+    errors.role = 'Role is required.';
+  }
+
+  if (!ROUNDS.includes(data.round)) {
+    errors.round = 'Please choose a valid application round.';
+  }
+
+  if (!data.appliedDate || !data.appliedDate.trim()) {
+    errors.appliedDate = 'Applied date is required.';
+  } else if (!isValidCalendarDate(data.appliedDate)) {
+    const [year, month, day] = (data.appliedDate || '').split('-').map(Number);
+    const parsed = new Date(year, month - 1, day);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    if (parsed > today) {
+      errors.appliedDate = 'Applied date cannot be in the future.';
+    } else {
+      errors.appliedDate = 'Enter a valid calendar date (YYYY-MM-DD).';
+    }
+  }
+
+  if (!data.jobLink || !data.jobLink.trim()) {
+    errors.jobLink = 'Job link is required.';
+  } else {
+    try {
+      const parsedUrl = new URL(data.jobLink.trim());
+      if (!['http:', 'https:'].includes(parsedUrl.protocol)) {
+        errors.jobLink = 'URL protocol must be http:// or https://';
+      }
+    } catch {
+      errors.jobLink = 'Please provide a valid URL (e.g., https://example.com/job).';
+    }
+  }
+
+  return errors;
 }
